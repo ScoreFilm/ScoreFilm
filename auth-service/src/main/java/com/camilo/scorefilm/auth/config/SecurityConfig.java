@@ -53,6 +53,12 @@ public class SecurityConfig {
                 // Rutas públicas (sin autenticación)
                 .requestMatchers("/api/auth/**").permitAll()  // Login y register
                 .requestMatchers("/.well-known/**").permitAll() // Public JWKS
+                .requestMatchers(
+                    "/swagger-ui.html",
+                    "/swagger-ui/**",
+                    "/v3/api-docs/**",
+                    "/v3/api-docs.yaml"
+                ).permitAll() // Swagger UI and OpenAPI specification
                 
                 // Rutas protegidas (requieren autenticación)
                 .requestMatchers("/api/users/me").authenticated()  // Datos del usuario actual
