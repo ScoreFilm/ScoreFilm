@@ -1,0 +1,28 @@
+# Spring Boot Docker Compose integration. Enable only when local infrastructure
+# is managed through Spring Boot's Docker Compose support.
+spring:
+  docker:
+    compose:
+      enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}
+
+  # PostgreSQL connection settings. Supply credentials through the environment.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/scorefilm_auth}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  # JPA and Hibernate behavior. Use schema validation in production.
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    show-sql: ${JPA_SHOW_SQL:false}
+
+# Application JWT signing and verification configuration. Mount RSA keys outside
+# the repository and provide their locations through environment variables.
+app:
+  jwt:
+    private-key-path: ${JWT_PRIVATE_KEY_PATH}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH}
+    key-id: ${JWT_KEY_ID:auth-service-key}
+    expiration: ${JWT_EXPIRATION:900000}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000}
