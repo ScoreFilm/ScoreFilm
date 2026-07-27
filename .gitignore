@@ -1,0 +1,105 @@
+# Git metadata from repositories previously nested in this monorepo
+.git
+**/.git
+**/.git/
+
+# Node.js / NestJS
+node_modules/
+dist/
+.nestjs/
+.node_repl_history
+*.tsbuildinfo
+
+# Package-manager diagnostics
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Test coverage and local caches
+coverage/
+.nyc_output/
+.cache/
+
+# Java / Gradle / Spring Boot
+.gradle/
+build/
+bin/
+out/
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.hprof
+hs_err_pid*
+replay_pid*
+
+# Generated reports and annotation-processing output
+reports/
+generated/
+generated-sources/
+generated-test-sources/
+
+# Keep the Gradle Wrapper versioned
+!gradle/wrapper/gradle-wrapper.jar
+!gradlew
+!gradlew.bat
+
+# Environment variables, certificates, and local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+*.secret
+*.secrets
+
+# IDEs and editors
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse / Spring Tool Suite
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+.springBeans
+.sts4-cache/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/.nb-gradle/
+
+# Operating systems and runtime logs
+.DS_Store
+Thumbs.db
+Desktop.ini
+logs/
+*.log
+*.pid
+*.pid.lock
+
+# ScoreFilm local-only project assets
+.agents/
+docs/
+HELP.md
+
+# Public repository files intentionally kept under version control
+!.env.example
+!application.example.yml
+!README.md
+!docker-compose.yml
+!package-lock.json
