@@ -8,10 +8,11 @@ import com.camilo.scorefilm.auth.role.entity.Role;
 import com.camilo.scorefilm.auth.role.repository.RoleRepository;
 import com.camilo.scorefilm.auth.user.entity.User;
 import com.camilo.scorefilm.auth.user.repository.UserRepository;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,14 +28,14 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("AuthService")
 class AuthServiceTest {
 
     private static final String RAW_PASSWORD = "Password123";
@@ -59,169 +60,186 @@ class AuthServiceTest {
     @InjectMocks
     private AuthService authService;
 
-    @Test
-    void registerCreatesUserWithEncodedPasswordAndReturnsToken() {
-        RegisterRequest request = registerRequest();
-        Role userRole = userRole();
-        User savedUser = userWithRole(ENCODED_PASSWORD, userRole);
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        ArgumentCaptor<UserDetails> userDetailsCaptor = ArgumentCaptor.forClass(UserDetails.class);
-
-        when(userRepository.existsUsername(request.getUsername())).thenReturn(false);
-        when(userRepository.existsEmail(request.getEmail())).thenReturn(false);
-        when(roleRepository.findByName("USER")).thenReturn(Optional.of(userRole));
-        when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(jwtService.generateToken(any(UserDetails.class))).thenReturn(TOKEN);
-
-        AuthResponse response = authService.register(request);
-
-        verify(passwordEncoder).encode(RAW_PASSWORD);
-        verify(userRepository).save(userCaptor.capture());
-        verify(jwtService).generateToken(userDetailsCaptor.capture());
-        assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo(ENCODED_PASSWORD);
-        assertThat(userCaptor.getValue().getPasswordHash()).isNotEqualTo(RAW_PASSWORD);
-        assertThat(userCaptor.getValue().getRoles()).containsExactly(userRole);
-        assertThat(userDetailsCaptor.getValue().getUsername()).isEqualTo(request.getUsername());
-        assertThat(userDetailsCaptor.getValue().getAuthorities())
-                .extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_USER");
-        assertThat(response.getAccessToken()).isEqualTo(TOKEN);
-        assertThat(response.getTokenType()).isEqualTo("Bearer");
-        assertThat(response.getUsername()).isEqualTo(request.getUsername());
-        assertThat(response.getEmail()).isEqualTo(request.getEmail());
-    }
-
-    @Test
-    void registerThrowsWhenEmailAlreadyExists() {
-        RegisterRequest request = registerRequest();
-
-        when(userRepository.existsUsername(request.getUsername())).thenReturn(false);
-        when(userRepository.existsEmail(request.getEmail())).thenReturn(true);
-
-        assertThatThrownBy(() -> authService.register(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("ya está registrado");
-
-        verify(userRepository, never()).save(any(User.class));
-        verify(passwordEncoder, never()).encode(any());
-        verify(jwtService, never()).generateToken(any(UserDetails.class));
-    }
-
-    @Test
-    void registerThrowsWhenUsernameAlreadyExists() {
-        RegisterRequest request = registerRequest();
-
-        when(userRepository.existsUsername(request.getUsername())).thenReturn(true);
-
-        assertThatThrownBy(() -> authService.register(request))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("ya existe");
-
-        verify(userRepository, never()).save(any(User.class));
-        verify(passwordEncoder, never()).encode(any());
-        verify(jwtService, never()).generateToken(any(UserDetails.class));
-    }
+    @Nested
+    @DisplayName("register")
+    class Register {
 
         @Test
-        void registerPropagatesJwtGenerationFailureAfterSavingUser() {
-                RegisterRequest request = registerRequest();
-                Role userRole = userRole();
-                User savedUser = userWithRole(ENCODED_PASSWORD, userRole);
-                RuntimeException tokenFailure = new RuntimeException("RSA private key unavailable");
+        @DisplayName("should create a user, encode the password and return a bearer token")
+        void register_validUser_returnsAuthResponse() {
+            // Arrange
+            RegisterRequest request = registerRequest();
+            Role userRole = userRole();
+            User savedUser = userWithRole(ENCODED_PASSWORD, userRole);
+            ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+            ArgumentCaptor<UserDetails> userDetailsCaptor = ArgumentCaptor.forClass(UserDetails.class);
 
-                when(userRepository.existsUsername(request.getUsername())).thenReturn(false);
-                when(userRepository.existsEmail(request.getEmail())).thenReturn(false);
-                when(roleRepository.findByName("USER")).thenReturn(Optional.of(userRole));
-                when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
-                when(userRepository.save(any(User.class))).thenReturn(savedUser);
-                when(jwtService.generateToken(any(UserDetails.class))).thenThrow(tokenFailure);
+            when(userRepository.existsUsername(request.getUsername())).thenReturn(false);
+            when(userRepository.existsEmail(request.getEmail())).thenReturn(false);
+            when(roleRepository.findByName("USER")).thenReturn(Optional.of(userRole));
+            when(passwordEncoder.encode(RAW_PASSWORD)).thenReturn(ENCODED_PASSWORD);
+            when(userRepository.save(any(User.class))).thenReturn(savedUser);
+            when(jwtService.generateToken(any(UserDetails.class))).thenReturn(TOKEN);
 
-                // El usuario ya se persiste antes de firmar el token; este test documenta ese comportamiento actual.
-                assertThatThrownBy(() -> authService.register(request))
-                                .isSameAs(tokenFailure);
+            // Act
+            AuthResponse response = authService.register(request);
 
-                InOrder inOrder = inOrder(userRepository, jwtService);
-                inOrder.verify(userRepository).save(any(User.class));
-                inOrder.verify(jwtService).generateToken(any(UserDetails.class));
+            // Assert
+            verify(passwordEncoder).encode(RAW_PASSWORD);
+            verify(userRepository).save(userCaptor.capture());
+            verify(jwtService).generateToken(userDetailsCaptor.capture());
+
+            assertThat(userCaptor.getValue().getPasswordHash()).isEqualTo(ENCODED_PASSWORD);
+            assertThat(userCaptor.getValue().getRoles()).containsExactly(userRole);
+            assertThat(userDetailsCaptor.getValue().getUsername()).isEqualTo(request.getUsername());
+            assertThat(userDetailsCaptor.getValue().getAuthorities())
+                    .extracting(GrantedAuthority::getAuthority)
+                    .containsExactly("ROLE_USER");
+            assertThat(response.getAccessToken()).isEqualTo(TOKEN);
+            assertThat(response.getTokenType()).isEqualTo("Bearer");
+            assertThat(response.getExpiresIn()).isEqualTo(900000);
+            assertThat(response.getUsername()).isEqualTo(request.getUsername());
+            assertThat(response.getEmail()).isEqualTo(request.getEmail());
         }
-
-    @Test
-    void loginAuthenticatesUserAndReturnsToken() {
-        LoginRequest request = loginRequest();
-        User user = userWithRole(ENCODED_PASSWORD, userRole());
-        ArgumentCaptor<UsernamePasswordAuthenticationToken> authenticationCaptor =
-                ArgumentCaptor.forClass(UsernamePasswordAuthenticationToken.class);
-        ArgumentCaptor<UserDetails> userDetailsCaptor = ArgumentCaptor.forClass(UserDetails.class);
-
-        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-        when(jwtService.generateToken(any(UserDetails.class))).thenReturn(TOKEN);
-
-        AuthResponse response = authService.login(request);
-
-        verify(authenticationManager).authenticate(authenticationCaptor.capture());
-        verify(jwtService).generateToken(userDetailsCaptor.capture());
-        assertThat(authenticationCaptor.getValue().getPrincipal()).isEqualTo(request.getEmail());
-        assertThat(authenticationCaptor.getValue().getCredentials()).isEqualTo(request.getPassword());
-        assertThat(userDetailsCaptor.getValue().getUsername()).isEqualTo(user.getUsername());
-        assertThat(userDetailsCaptor.getValue().getAuthorities())
-                .extracting(GrantedAuthority::getAuthority)
-                .containsExactly("ROLE_USER");
-        assertThat(response.getAccessToken()).isEqualTo(TOKEN);
-        assertThat(response.getTokenType()).isEqualTo("Bearer");
-        assertThat(response.getUsername()).isEqualTo(user.getUsername());
-        assertThat(response.getEmail()).isEqualTo(user.getEmail());
-    }
-
-    @Test
-    void loginThrowsBadCredentialsWhenPasswordIsIncorrect() {
-        LoginRequest request = loginRequest();
-
-        when(userRepository.findByEmail(request.getEmail()))
-                .thenReturn(Optional.of(userWithRole(ENCODED_PASSWORD, userRole())));
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Bad credentials"));
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BadCredentialsException.class)
-                .hasMessageContaining("Email o contraseña incorrectos");
-
-        verify(jwtService, never()).generateToken(any(UserDetails.class));
-    }
-
-    @Test
-    void loginThrowsBadCredentialsWhenUserIsNotFound() {
-        LoginRequest request = loginRequest();
-
-        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BadCredentialsException.class)
-                .hasMessageContaining("Email o contraseña incorrectos");
-
-        verify(authenticationManager, never()).authenticate(any(UsernamePasswordAuthenticationToken.class));
-        verify(jwtService, never()).generateToken(any(UserDetails.class));
-    }
 
         @Test
-        void loginPropagatesJwtGenerationFailureWithoutSavingUser() {
-                LoginRequest request = loginRequest();
-                User user = userWithRole(ENCODED_PASSWORD, userRole());
-                RuntimeException tokenFailure = new RuntimeException("RSA private key unavailable");
+        @DisplayName("should reject registration when the email is already registered")
+        void register_duplicateEmail_throwsRuntimeException() {
+            // Arrange
+            RegisterRequest request = registerRequest();
 
-                when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
-                when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                                .thenReturn(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-                when(jwtService.generateToken(any(UserDetails.class))).thenThrow(tokenFailure);
+            when(userRepository.existsUsername(request.getUsername())).thenReturn(false);
+            when(userRepository.existsEmail(request.getEmail())).thenReturn(true);
 
-                assertThatThrownBy(() -> authService.login(request))
-                                .isSameAs(tokenFailure);
+            // Act
+            RuntimeException exception = catchThrowableOfType(
+                    RuntimeException.class,
+                    () -> authService.register(request)
+            );
 
-                verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
-                verify(userRepository, never()).save(any(User.class));
+            // Assert
+            assertThat(exception)
+                    .withFailMessage("Expected register() to reject duplicate email '%s'", request.getEmail())
+                    .hasMessageContaining("El email '" + request.getEmail() + "'")
+                    .hasMessageContaining("registrado");
+
+            verify(userRepository, never()).save(any(User.class));
+            verify(passwordEncoder, never()).encode(any());
+            verify(jwtService, never()).generateToken(any(UserDetails.class));
         }
+
+        @Test
+        @DisplayName("should reject registration when the username already exists")
+        void register_duplicateUsername_throwsRuntimeException() {
+            // Arrange
+            RegisterRequest request = registerRequest();
+
+            when(userRepository.existsUsername(request.getUsername())).thenReturn(true);
+
+            // Act
+            RuntimeException exception = catchThrowableOfType(
+                    RuntimeException.class,
+                    () -> authService.register(request)
+            );
+
+            // Assert
+            assertThat(exception)
+                    .withFailMessage("Expected register() to reject duplicate username '%s'", request.getUsername())
+                    .hasMessageContaining("El usuario '" + request.getUsername() + "'")
+                    .hasMessageContaining("ya existe");
+
+            verify(userRepository, never()).save(any(User.class));
+            verify(passwordEncoder, never()).encode(any());
+            verify(jwtService, never()).generateToken(any(UserDetails.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("login")
+    class Login {
+
+        @Test
+        @DisplayName("should authenticate the user and return a bearer token")
+        void login_validCredentials_returnsAuthResponse() {
+            // Arrange
+            LoginRequest request = loginRequest();
+            User user = userWithRole(ENCODED_PASSWORD, userRole());
+            ArgumentCaptor<UsernamePasswordAuthenticationToken> authenticationCaptor =
+                    ArgumentCaptor.forClass(UsernamePasswordAuthenticationToken.class);
+            ArgumentCaptor<UserDetails> userDetailsCaptor = ArgumentCaptor.forClass(UserDetails.class);
+
+            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(user));
+            when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                    .thenReturn(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            when(jwtService.generateToken(any(UserDetails.class))).thenReturn(TOKEN);
+
+            // Act
+            AuthResponse response = authService.login(request);
+
+            // Assert
+            verify(authenticationManager).authenticate(authenticationCaptor.capture());
+            verify(jwtService).generateToken(userDetailsCaptor.capture());
+
+            assertThat(authenticationCaptor.getValue().getPrincipal()).isEqualTo(request.getEmail());
+            assertThat(authenticationCaptor.getValue().getCredentials()).isEqualTo(request.getPassword());
+            assertThat(userDetailsCaptor.getValue().getUsername()).isEqualTo(user.getUsername());
+            assertThat(userDetailsCaptor.getValue().getAuthorities())
+                    .extracting(GrantedAuthority::getAuthority)
+                    .containsExactly("ROLE_USER");
+            assertThat(response.getAccessToken()).isEqualTo(TOKEN);
+            assertThat(response.getTokenType()).isEqualTo("Bearer");
+            assertThat(response.getExpiresIn()).isEqualTo(900000);
+            assertThat(response.getUsername()).isEqualTo(user.getUsername());
+            assertThat(response.getEmail()).isEqualTo(user.getEmail());
+        }
+
+        @Test
+        @DisplayName("should reject login when no user exists for the email")
+        void login_unknownUser_throwsBadCredentialsException() {
+            // Arrange
+            LoginRequest request = loginRequest();
+
+            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.empty());
+
+            // Act
+            BadCredentialsException exception = catchThrowableOfType(
+                    BadCredentialsException.class,
+                    () -> authService.login(request)
+            );
+
+            // Assert
+            assertThat(exception)
+                    .withFailMessage("Expected login() to reject unknown email '%s'", request.getEmail())
+                    .hasMessageContaining("Email o contrase");
+
+            verify(authenticationManager, never()).authenticate(any(UsernamePasswordAuthenticationToken.class));
+            verify(jwtService, never()).generateToken(any(UserDetails.class));
+        }
+
+        @Test
+        @DisplayName("should reject login when Spring Security cannot authenticate the credentials")
+        void login_invalidCredentials_throwsBadCredentialsException() {
+            // Arrange
+            LoginRequest request = loginRequest();
+
+            when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(userWithRole(ENCODED_PASSWORD, userRole())));
+            when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
+                    .thenThrow(new BadCredentialsException("Bad credentials"));
+
+            // Act
+            BadCredentialsException exception = catchThrowableOfType(
+                    BadCredentialsException.class,
+                    () -> authService.login(request)
+            );
+
+            // Assert
+            assertThat(exception)
+                    .withFailMessage("Expected login() to reject invalid credentials for email '%s'", request.getEmail())
+                    .hasMessageContaining("Email o contrase");
+
+            verify(jwtService, never()).generateToken(any(UserDetails.class));
+        }
+    }
 
     private RegisterRequest registerRequest() {
         return RegisterRequest.builder()
