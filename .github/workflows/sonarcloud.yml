@@ -38,6 +38,10 @@ jobs:
           java-version: "25"
           cache: gradle
 
+      - name: Make Gradle wrapper executable
+        working-directory: auth-service
+        run: chmod +x gradlew
+
       - name: Run tests and generate JaCoCo report
         working-directory: auth-service
         run: ./gradlew clean test jacocoTestReport
