@@ -44,6 +44,7 @@ generated-test-sources/
 
 # Keep the Gradle Wrapper versioned
 !gradle/wrapper/gradle-wrapper.jar
+!auth-service/gradle/wrapper/gradle-wrapper.jar
 !gradlew
 !gradlew.bat
 
