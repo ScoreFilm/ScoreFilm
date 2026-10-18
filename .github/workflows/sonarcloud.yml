@@ -52,3 +52,20 @@ jobs:
             -Dsonar.projectKey=ScoreFilm_ScoreFilm
             -Dsonar.organization=scorefilm
             -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
+            -Dsonar.test.inclusions=src/test/**
+            -Dsonar.exclusions=build/**,.gradle/**,src/jmh/**
+            -Dsonar.java.binaries=build/classes/java/main
+            -Dsonar.java.test.binaries=build/classes/java/test
+            -Dsonar.junit.reportPaths=build/test-results/test
+            -Dsonar.java.libraries=/home/runner/.gradle/caches/modules-2/files-2.1/**/*.jar
+            -Dsonar.java.test.libraries=/home/runner/.gradle/caches/modules-2/files-2.1/**/*.jar
+
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-reports
+          path: |
+            auth-service/build/reports/jacoco/test/html
+            auth-service/build/reports/tests/test
+          retention-days: 7
