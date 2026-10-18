@@ -20,6 +20,8 @@ spring:
 # Application JWT signing and verification configuration. Mount RSA keys outside
 # the repository and provide their locations through environment variables.
 app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
   jwt:
     private-key-path: ${JWT_PRIVATE_KEY_PATH}
     public-key-path: ${JWT_PUBLIC_KEY_PATH}

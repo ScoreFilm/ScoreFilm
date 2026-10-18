@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.Customizer;
 
 @Configuration
 @EnableWebSecurity
@@ -31,6 +32,10 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter
     ) throws Exception {
+        http.cors(Customizer.withDefaults());
+        
+        // API stateless autenticada solo por JWT en el header Authorization (sin cookies
+        // ni sesiones): no hay vector CSRF, por eso se deshabilita.
         http.csrf(csrf -> csrf.disable());
         
         // Stateless: sin sesiones HTTP, solo JWT
